@@ -1,6 +1,6 @@
 #Written by Brian Leung
 import numpy as np
-
+import eig_helper as eh
 
 """
 Parameters:
@@ -23,10 +23,10 @@ def quest(body_vecs,weights,inertial_vecs):
     if (body_vecs.shape[0] != weights.shape[0]):
         raise ValueError("Unequal numbers of weights and body vectors.")
     vec_count = body_vecs.shape[0]
+
     #DETERMINING APPROXIMATE EIGENVALUE
-    eig_approx = weights.sum()
+    eig_guess = weights.sum()
     
-    #REFINE GUESS USING NEWTON RAPHSON
     #Calculating K matrix:
     B = np.zeros((3,3))
     for i in range(vec_count):
@@ -44,33 +44,43 @@ def quest(body_vecs,weights,inertial_vecs):
     K[0,1:]=Z.reshape(3)
     K[1:,1:]=S-sigma*np.identity(3)
     print("K = \n",K)
-    #STARTING NEWTON RAPHSON
-'''
-    coeff_l3 = trace(K)
-    coeff_l2 = 0
-    for i in range(0,3):
-        for j in range(i+1,4):
-            coeff_l2+=K[i,j]*K[j,i]-K[i,i]*K[j,j]
-    coeff_l1 = 0
-    coeff_l0 = 0
 
-    (trace(K)*l^3 - l^4 + l^2*coeff_l2 + 
-        K1_1*(K2_2*(-K3_3*K4_4 + K3_4*K4_3) + K2_3*(K3_2*K4_4 - K3_4*K4_2) - K2_4*(K3_2*K4_3 + K3_3*K4_2)) + 
-        K1_2*(K2_1*(K3_3*K4_4 - K3_4*K4_3) + K2_3*(-K3_1*K4_4 + K3_4*K4_1) + K2_4*(K3_1*K4_3 - K3_3*K4_1)) + 
-        K1_3*(-K2_1*K3_2*K4_4 + K2_1*K3_4*K4_2 + K2_2*K3_1*K4_4 - K2_2*K3_4*K4_1 - K2_4*K3_1*K4_2 + K2_4*K3_2*K4_1) + 
-        K1_4*(K2_1*K3_2*K4_3 - K2_1*K3_3*K4_2 - K2_2*K3_1*K4_3 + K2_2*K3_3*K4_1 + K2_3*K3_1*K4_2 - K2_3*K3_2*K4_1) + l*(K1_1*K2_2*K3_3 - K1_1*K2_3*K3_2 - K1_2*K2_1*K3_3 + K1_2*K2_3*K3_1 + K1_3*K2_1*K3_2 - K1_3*K2_2*K3_1 + K1_1*K2_2*K4_4 - K1_1*K2_4*K4_2 - K1_2*K2_1*K4_4 + K1_2*K2_4*K4_1 + K1_4*K2_1*K4_2 - K1_4*K2_2*K4_1 + K1_1*K3_3*K4_4 - K1_1*K3_4*K4_3 - K1_3*K3_1*K4_4 + K1_3*K3_4*K4_1 + K1_4*K3_1*K4_3 - K1_4*K3_3*K4_1 + K2_2*K3_3*K4_4 - K2_2*K3_4*K4_3 - K2_3*K3_2*K4_4 + K2_3*K3_4*K4_2 + K2_4*K3_2*K4_3 - K2_4*K3_3*K4_2))/(3*l^2*trace(K) - 4*l^3 + K1_1*K2_2*K3_3 - K1_1*K2_3*K3_2 - K1_2*K2_1*K3_3 + K1_2*K2_3*K3_1 + K1_3*K2_1*K3_2 - K1_3*K2_2*K3_1 + K1_1*K2_2*K4_4 - K1_1*K2_4*K4_2 - K1_2*K2_1*K4_4 + K1_2*K2_4*K4_1 + K1_4*K2_1*K4_2 - K1_4*K2_2*K4_1 + K1_1*K3_3*K4_4 - K1_1*K3_4*K4_3 - K1_3*K3_1*K4_4 + K1_3*K3_4*K4_1 + K1_4*K3_1*K4_3 - K1_4*K3_3*K4_1 + K2_2*K3_3*K4_4 - K2_2*K3_4*K4_3 - K2_3*K3_2*K4_4 + K2_3*K3_4*K4_2 + K2_4*K3_2*K4_3 - K2_4*K3_3*K4_2 + 2*l*(coeff_l2)
-'''
+    #STARTING NEWTON RAPHSON
+    c_l3 = eh.l3_coeff(K)
+    c_l2 = eh.l2_coeff(K)
+    c_l1 = eh.l1_coeff(K)
+    c_l0 = eh.l0_coeff(K)
+    while (eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3) != 0):
+        eig_guess = eig_guess - eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3)/eh.diff_chr_eq(eig_guess,c_l1,c_l2,c_l3)
+    
     #CALCULATE OUTPUT IN CRPs
-    return(eig_approx)
+    return(eig_guess)
 
 def main():
     body = np.array([[1,0,0],[0,1,0]])
     inertial = np.array([[1,0,0],[0,1,0]])
     weight = np.array([[1],[1]])
-    a = np.array([[1,0,0]])
-    b = np.array([[1,0,0]])
-    b = np.transpose(b)
-    #print(b.dot(a))
+    
+    #---Testing block for characteristic equation---
+    '''
+    M = np.array([
+        [4,1,3,4],
+        [5,6,7,8],
+        [9,10,11,12],
+        [13,14,15,13]])
+    c_l3 = eh.l3_coeff(M)
+    c_l2 = eh.l2_coeff(M)
+    c_l1 = eh.l1_coeff(M)
+    c_l0 = eh.l0_coeff(M)
+    print(c_l0)
+    print(c_l1)
+    print(c_l2)
+    print(c_l3)
+    print(eh.chr_eq(1,c_l0,c_l1,c_l2,c_l3))
+    print(eh.diff_chr_eq(1,c_l1,c_l2,c_l3))
+    '''
+    #---End testing block---
+
     print(quest(body,weight,inertial))
     
 
