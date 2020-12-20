@@ -1,5 +1,4 @@
 #Written by Brian Leung
-
 import numpy as np
 import eig_helper as eh
 from math import sqrt
@@ -28,8 +27,8 @@ def quest(body_vecs,weights,inertial_vecs):
 
     #Ensuring unit length on vectors
     for i in range(vec_count):
-    	body_vecs[:,i]/=np.linalg.norm(body_vecs[:,i])
-    	inertial_vecs[:,i]/=np.linalg.norm(inertial_vecs[:,i])	
+        body_vecs[:,i]=body_vecs[:,i]/np.linalg.norm(body_vecs[:,i])
+        inertial_vecs[:,i]=inertial_vecs[:,i]/np.linalg.norm(inertial_vecs[:,i])    
     #DETERMINING APPROXIMATE EIGENVALUE
     eig_guess = weights.sum()
     
