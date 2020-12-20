@@ -1,2 +1,4 @@
-#Just excluding the virtual environment
+#Just excluding the virtual environment, as well as a few other things.
 **/env
+*.asv
+**/__pycache__

@@ -1,6 +1,8 @@
 #Written by Brian Leung
+
 import numpy as np
 import eig_helper as eh
+from math import sqrt
 
 """
 Parameters:
@@ -24,6 +26,10 @@ def quest(body_vecs,weights,inertial_vecs):
         raise ValueError("Unequal numbers of weights and body vectors.")
     vec_count = body_vecs.shape[0]
 
+    #Ensuring unit length on vectors
+    for i in range(vec_count):
+    	body_vecs[:,i]/=np.linalg.norm(body_vecs[:,i])
+    	inertial_vecs[:,i]/=np.linalg.norm(inertial_vecs[:,i])	
     #DETERMINING APPROXIMATE EIGENVALUE
     eig_guess = weights.sum()
     
@@ -31,36 +37,49 @@ def quest(body_vecs,weights,inertial_vecs):
     B = np.zeros((3,3))
     for i in range(vec_count):
         B += weights[i]*body_vecs[i,:].reshape(-1,1).dot(inertial_vecs[i,:].reshape(1,-1))
-    print("B = \n",B)
+    #print("B = \n",B)
     Z = np.array([[B[1,2]-B[2,1]],[B[2,0]-B[0,2]],[B[0,1]-B[1,0]]])
-    print("Z = \n",Z)
+    #print("Z = \n",Z)
     sigma = np.trace(B)
-    print("sigma = \n",sigma)
+    #print("sigma = \n",sigma)
     S = B+B.T
-    print("S = \n",S)
+    #print("S = \n",S)
     K = np.zeros((4,4))
     K[0,0]=sigma
     K[1:,1]=Z.reshape(3)
     K[0,1:]=Z.reshape(3)
     K[1:,1:]=S-sigma*np.identity(3)
-    print("K = \n",K)
+    #print("K = \n",K)
 
     #STARTING NEWTON RAPHSON
     c_l3 = eh.l3_coeff(K)
     c_l2 = eh.l2_coeff(K)
     c_l1 = eh.l1_coeff(K)
     c_l0 = eh.l0_coeff(K)
-    while (eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3) != 0):
-        eig_guess = eig_guess - eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3)/eh.diff_chr_eq(eig_guess,c_l1,c_l2,c_l3)
+    while (abs(eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3)) >= 0.0000001):
+        eig_guess -= eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3)/eh.diff_chr_eq(eig_guess,c_l1,c_l2,c_l3)
     
     #CALCULATE OUTPUT IN CRPs
-    return(eig_guess)
+    crp = np.linalg.inv((eig_guess+sigma)*np.identity(3)-S).dot(Z)
+    print("CRP =")
+    print(crp)
+
+    #CONVERT TO QUATERNIONS
+    temp_quat = np.array([[1.0],[0.0],[0.0],[0.0]])
+    temp_quat[1:,0] = crp.reshape(3)
+    quat = 1/sqrt(1+(crp.T).dot(crp))*temp_quat
+    return(quat)
 
 def main():
-    body = np.array([[1,0,0],[0,1,0]])
+    body = np.array([[0.8660254,-0.5,0],[0.5,0.8660254,0]])
     inertial = np.array([[1,0,0],[0,1,0]])
-    weight = np.array([[1],[1]])
-    
+    weight = np.array([[1],[0.3]])
+    '''
+    a = np.array([[1,2,3,4]])
+    b = np.array([[6,6]])
+    a[0,2:] = b.reshape(2)
+    print(a)
+    '''
     #---Testing block for characteristic equation---
     '''
     M = np.array([

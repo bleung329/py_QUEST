@@ -1,7 +1,9 @@
+%Written by Brian Leung
+
 %PURPOSE:
-%This file is just a mish mash of things that helped me write out what the
+%This file is just a mish mash of things that helped me work out what the
 %characteristic equation was, specifically for the work done in eig_helper.
-%It's more scrap paper than actual code, so feel free to ignore.
+%This is more scrap paper than actual code, so feel free to ignore whatever is in this file.
 
 syms L K K1_1 K1_2 K1_3 K1_4 K2_1 K2_2 K2_3 K2_4 K3_1 K3_2 K3_3 K3_4 K4_1 K4_2 K4_3 K4_4
 clc;
