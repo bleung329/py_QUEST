@@ -2,77 +2,90 @@
 import numpy as np
 import eig_helper as eh
 from math import sqrt
+import time
 
 """
 Parameters:
-    body_vecs: Nx3 numpy array of body measurement vectors, where N>=2
-    weights: Nx1 numpy array of weights, corresponding to each of the body vectors 
+    body_vecs: Nx3 numpy array of unit length body measurement vectors, where N>=2
+    weights: Nx1 numpy array of weights, corresponding to each of the unit body vectors 
     inertial_vecs: Nx3 numpy array corresponding inertial vectors
 Output:
-    Quaternion of current attitude 
+    Quaternion of current attitude <q0 q1 q2 q3>, where q0 is the scalar term
     (It'll just be a 1x4 numpy array, since numpy doesnt support quaternions natively.)
 """
 def quest(body_vecs,weights,inertial_vecs):
-    #ENFORCING DIMENSIONS
-    #Ensuring proper dimensions
+    ##ENFORCING DIMENSIONS
+    ##Ensuring proper dimensions
     if (body_vecs.shape[1] != 3 or inertial_vecs.shape[1] != 3 or weights.shape[1] != 1):
         raise ValueError("Check the dimensions on your arrays.")
-    #Ensuring same number of inertial and body vectors
+    ##Ensuring same number of inertial and body vectors
     if (body_vecs.shape != inertial_vecs.shape):
         raise ValueError("Unequal numbers of inertial and body vectors.")
-    #Ensuring same number of weights and body vectors
+    ##Ensuring same number of weights and body vectors
     if (body_vecs.shape[0] != weights.shape[0]):
         raise ValueError("Unequal numbers of weights and body vectors.")
     vec_count = body_vecs.shape[0]
 
-    #Ensuring unit length on vectors
-    for i in range(vec_count):
-        body_vecs[:,i]=body_vecs[:,i]/np.linalg.norm(body_vecs[:,i])
-        inertial_vecs[:,i]=inertial_vecs[:,i]/np.linalg.norm(inertial_vecs[:,i])    
-    #DETERMINING APPROXIMATE EIGENVALUE
+    ##DETERMINING APPROXIMATE EIGENVALUE
     eig_guess = weights.sum()
     
-    #Calculating K matrix:
+    ##Calculating K matrix:
     B = np.zeros((3,3))
     for i in range(vec_count):
-        B += weights[i]*body_vecs[i,:].reshape(-1,1).dot(inertial_vecs[i,:].reshape(1,-1))
+        B += weights[i]*body_vecs[i,:].reshape(3,1).dot(inertial_vecs[i,:].reshape(1,3))
+
     #print("B = \n",B)
     Z = np.array([[B[1,2]-B[2,1]],[B[2,0]-B[0,2]],[B[0,1]-B[1,0]]])
     #print("Z = \n",Z)
-    sigma = np.trace(B)
+    sigma = B[0,0] + B[1,1] + B[2,2] #trace of B
     #print("sigma = \n",sigma)
     S = B+B.T
     #print("S = \n",S)
     K = np.zeros((4,4))
-    K[0,0]=sigma
-    K[1:,1]=Z.reshape(3)
-    K[0,1:]=Z.reshape(3)
-    K[1:,1:]=S-sigma*np.identity(3)
-    #print("K = \n",K)
+    K[3,3]=sigma
+    K[0:3,3]=Z.reshape(3)
+    K[3,0:3]=Z.reshape(3)
+    K[0:3,0:3]=S-sigma*np.identity(3)
+
+    print("K = \n",K)
 
     #STARTING NEWTON RAPHSON
     c_l3 = eh.l3_coeff(K)
     c_l2 = eh.l2_coeff(K)
     c_l1 = eh.l1_coeff(K)
     c_l0 = eh.l0_coeff(K)
-    while (abs(eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3)) >= 0.0000001):
+    print("original eigenvalue is: ",eig_guess)
+    while (abs(eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3)) >= 0.00000001):
         eig_guess -= eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3)/eh.diff_chr_eq(eig_guess,c_l1,c_l2,c_l3)
-    
-    #CALCULATE OUTPUT IN CRPs
-    crp = np.linalg.inv((eig_guess+sigma)*np.identity(3)-S).dot(Z)
-    print("CRP =")
-    print(crp)
+    print("biggest eigenvalue is: ",eig_guess)
 
-    #CONVERT TO QUATERNIONS
-    temp_quat = np.array([[1.0],[0.0],[0.0],[0.0]])
-    temp_quat[1:,0] = crp.reshape(3)
+    ##Could this check be done somewhat earlier in the program, 
+    ##so we don't have to redo everything?
+    pre_crp_mat = (eig_guess+sigma)*np.identity(3)-S
+    if np.linalg.det(pre_crp_mat) == 0:
+        print("uh oh singular")
+        return 0
+    
+    ##CALCULATE OUTPUT IN CRPs
+    crp = np.linalg.inv(pre_crp_mat).dot(Z)
+    #print("CRP =\n",crp)
+
+    ##CONVERT TO QUATERNIONS
+    temp_quat = np.array([[0.0],[0.0],[0.0],[1.0]])
+    temp_quat[0:3,0] = crp.reshape(3)
     quat = 1/sqrt(1+(crp.T).dot(crp))*temp_quat
     return(quat)
 
 def main():
+    body_0 = np.array([[1,0,0],[0,1,0]])
     body = np.array([[0.8660254,-0.5,0],[0.5,0.8660254,0]])
+    body_90 = np.array([[0,1,0],[-1,0,0]])
+    body_180 = np.array([[-1,0,0],[0,-1,0]])
     inertial = np.array([[1,0,0],[0,1,0]])
-    weight = np.array([[1],[0.3]])
+    body_raw = np.array([[0.7814,0.3751,0.4987],[0.6163,0.7075,-0.3459]])
+    inertial_raw = np.array([[0.2673,0.5345,0.8018],[-0.3124,0.9370,0.1562]])
+    
+    weight = np.array([[1],[1]])
     '''
     a = np.array([[1,2,3,4]])
     b = np.array([[6,6]])
@@ -98,9 +111,12 @@ def main():
     print(eh.diff_chr_eq(1,c_l1,c_l2,c_l3))
     '''
     #---End testing block---
-
-    print(quest(body,weight,inertial))
-    
+    tic = time.perf_counter()
+    out = quest(body,weight,inertial)
+    toc = time.perf_counter()
+    print("time: ",toc-tic)
+    print("output=")
+    print(out)
 
 if __name__ == "__main__":
     main()
