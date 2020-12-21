@@ -61,7 +61,7 @@ def quest(body_vecs,weights,inertial_vecs):
         #All of this is completely arbitrary, just remember how to revert back to the original.
         rot_mat = np.array([[0,-1,0],[1,0,0],[0,0,1]])
         for i in range(vec_count):
-            body_vecs[i,:] = (rot_matrix.dot(body_vecs[i,:].reshape(3,1))).reshape(3)
+            body_vecs[i,:] = (rot_mat.dot(body_vecs[i,:].reshape(3,1))).reshape(3)
         ##Calculate the alternate quaternion
         alt_quat = quest(body_vecs,weights,inertial_vecs).reshape(-1,)
         ##Rotate the alternate quaternion back to original
@@ -72,7 +72,7 @@ def quest(body_vecs,weights,inertial_vecs):
             [alt_quat[2],-alt_quat[3], alt_quat[0],-alt_quat[1]],
             [alt_quat[3],-alt_quat[2], alt_quat[1], alt_quat[0]]
         ])
-        return alt_quat_matrix.dot(np.array([[0.7071068],[0],[0],[0.7071068]]))
+        return alt_quat_mat.dot(np.array([[0.7071068],[0],[0],[0.7071068]]))
     
     ##CALCULATE OUTPUT IN CRPs
     crp = np.linalg.inv(pre_crp_mat).dot(Z)
