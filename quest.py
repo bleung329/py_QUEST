@@ -13,8 +13,8 @@ Output:
     Quaternion of current attitude <q0 q1 q2 q3>, where q0 is the scalar term
     (It'll just be a 1x4 numpy array, since numpy doesnt support quaternions natively.)
 """
-def quest(body_vecs,weights,inertial_vecs):
-    ##ENFORCING DIMENSIONS
+
+def quest(body_vecs,weights,inertial_vecs,precision=0.000001):
     #Ensuring proper dimensions
     if (body_vecs.shape[1] != 3 or inertial_vecs.shape[1] != 3 or weights.shape[1] != 1):
         raise ValueError("Check the dimensions on your arrays.")
@@ -48,7 +48,7 @@ def quest(body_vecs,weights,inertial_vecs):
     c_l2 = eh.l2_coeff(K)
     c_l1 = eh.l1_coeff(K)
     c_l0 = eh.l0_coeff(K)
-    while (abs(eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3)) >= 0.00000001): #arbitrary precision
+    while (abs(eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3)) >= precision): #arbitrary precision
         eig_guess -= eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3)/eh.diff_chr_eq(eig_guess,c_l1,c_l2,c_l3)
 
     ##SINGULARITY HANDLING
@@ -56,23 +56,28 @@ def quest(body_vecs,weights,inertial_vecs):
     #so we don't have to redo everything?
     pre_crp_mat = (eig_guess+sigma)*np.identity(3)-S
     if np.linalg.det(pre_crp_mat) == 0:
-        ##Rotate the measured body vectors 90 degrees around the Z axis, making the alt_body
-        #This is equivalent to rotating the body frame itself -90 degrees.
+        
         #All of this is completely arbitrary, just remember how to revert back to the original.
-        rot_mat = np.array([[0,-1,0],[1,0,0],[0,0,1]])
+        body_vecs=body_vecs*1.0
+        rot_mat = np.array([
+            [0,0,1],
+            [1,0,0],
+            [0,1,0]])
+        rot_quat = np.array([0.5,0.5,0.5,0.5])
+
         for i in range(vec_count):
-            body_vecs[i,:] = (rot_mat.dot(body_vecs[i,:].reshape(3,1))).reshape(3)
-        ##Calculate the alternate quaternion
-        alt_quat = quest(body_vecs,weights,inertial_vecs).reshape(-1,)
-        ##Rotate the alternate quaternion back to original
-        #TODO: I'll make this cleaner.
-        alt_quat_mat = np.array([
-            [alt_quat[0],-alt_quat[1],-alt_quat[2],-alt_quat[3]],
-            [alt_quat[1], alt_quat[0],-alt_quat[3], alt_quat[2]],
-            [alt_quat[2],-alt_quat[3], alt_quat[0],-alt_quat[1]],
-            [alt_quat[3],-alt_quat[2], alt_quat[1], alt_quat[0]]
+            body_vecs[i,:] = (rot_mat.dot(body_vecs[i,:].reshape(3,1))).reshape(3,)
+
+        alt_quat = quest(body_vecs,weights,inertial_vecs)
+
+        ##Rotates the alternate quaternion back to original
+        rot_quat_mat = np.array([
+            [rot_quat[0],-rot_quat[1],-rot_quat[2],-rot_quat[3]],
+            [rot_quat[1], rot_quat[0], rot_quat[3],-rot_quat[2]],
+            [rot_quat[2],-rot_quat[3], rot_quat[0], rot_quat[1]],
+            [rot_quat[3], rot_quat[2],-rot_quat[1], rot_quat[0]]
         ])
-        return alt_quat_mat.dot(np.array([[0.7071068],[0],[0],[0.7071068]]))
+        return np.around(rot_quat_mat.dot(alt_quat),8)
     
     ##CALCULATE OUTPUT IN CRPs
     crp = np.linalg.inv(pre_crp_mat).dot(Z)
@@ -82,29 +87,49 @@ def quest(body_vecs,weights,inertial_vecs):
     temp_quat[1:,0] = crp.reshape(3)
     quat = 1/sqrt(1+(crp.T).dot(crp))*temp_quat
 
-    '''
-    #Various debug statements
-    print("B = \n",B)
-    print("Z = \n",Z)
-    print("sigma = \n",sigma)
-    print("S = \n",S)
-    print("K = \n",K)
-    print("Actual eigenvalue is = ",eig_guess)
-    print("CRP =\n",crp)
-    '''
     return(quat)
 
 def main():
     body_0 = np.array([[1,0,0],[0,1,0]])
     body = np.array([[0.8660254,-0.5,0],[0.5,0.8660254,0]])
     body_90 = np.array([[0,1,0],[-1,0,0]])
-    body_180 = np.array([[-1,0,0],[0,-1,0]])
+    body_180z = np.array([[-1,0,0],[0,-1,0]])
+    body_180y = np.array([[-1,0,0],[0,1,0]])
+    body_180x = np.array([[1,0,0],[0,-1,0]])
     inertial = np.array([[1,0,0],[0,1,0]])
     
     body_raw = np.array([[0.7814,0.3751,0.4987],[0.6163,0.7075,-0.3459]])
     inertial_raw = np.array([[0.2673,0.5345,0.8018],[-0.3124,0.9370,0.1562]])
     
     weight = np.array([[1],[1]])
+
+    b_x_180 = np.array([[1,0,0],[0,-1,0]])
+    b_x_correct = np.array([0,1,0,0])
+    b_y_180 = np.array([[-1,0,0],[0,1,0]])
+    b_y_correct = np.array([0,0,1,0])
+    b_z_180 = np.array([[-1,0,0],[0,-1,0]])
+    b_z_correct = np.array([0,0,0,1])
+    w = np.array([[1],[1]])
+    i = np.array([[1,0,0],[0,1,0]])
+    #tic = time.perf_counter()
+
+    print("original\n",b_x_180)
+    out = quest(b_x_180,w,i)
+    print("output=\n",out)
+    print("actual=\n",b_x_correct)
+
+    print("original\n",b_y_180)
+    out = quest(b_y_180,w,i)
+    print("output=\n",out)
+    print("actual=\n",b_y_correct)
+
+    print("original\n",b_z_180)
+    out = quest(b_z_180,w,i)
+    print("output=\n",out)
+    print("actual=\n",b_z_correct)
+
+if __name__ == "__main__":
+    main()
 
     #---Testing block for characteristic equation---
     '''
@@ -125,12 +150,14 @@ def main():
     print(eh.diff_chr_eq(1,c_l1,c_l2,c_l3))
     '''
     #---End testing block---
-    tic = time.perf_counter()
-    out = quest(body_180,weight,inertial)
-    toc = time.perf_counter()
-    print("time= ",toc-tic)
-    print("output=")
-    print(out)
 
-if __name__ == "__main__":
-    main()
+    '''
+    #Various debug statements
+    print("B = \n",B)
+    print("Z = \n",Z)
+    print("sigma = \n",sigma)
+    print("S = \n",S)
+    print("K = \n",K)
+    print("Actual eigenvalue is = ",eig_guess)
+    print("CRP =\n",crp)
+    '''

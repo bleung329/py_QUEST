@@ -39,6 +39,7 @@ def l1_coeff(K):
         + K[1,2]*( K[2,1]*K[3,3] - K[2,3]*K[3,1]) 
         + K[1,3]*(-K[2,1]*K[3,2] + K[2,2]*K[3,1])
         )
+    
 #Returns the L^2 coefficient     
 def l2_coeff(K):
     ret = 0
