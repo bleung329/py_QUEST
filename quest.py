@@ -1,4 +1,7 @@
 #Written by Brian Leung
+
+###PURPOSE:
+#Implementation of the quest algorithm.
 import numpy as np
 import eig_helper as eh
 from math import sqrt
@@ -15,7 +18,8 @@ Output:
 """
 
 def quest(body_vecs,weights,inertial_vecs,precision=0.000001):
-    #Ensuring proper dimensions
+
+    #Ensuring proper vector lengths of all inputs
     if (body_vecs.shape[1] != 3 or inertial_vecs.shape[1] != 3 or weights.shape[1] != 1):
         raise ValueError("Check the dimensions on your arrays.")
     #Ensuring same number of inertial and body vectors
@@ -25,6 +29,10 @@ def quest(body_vecs,weights,inertial_vecs,precision=0.000001):
     if (body_vecs.shape[0] != weights.shape[0]):
         raise ValueError("Unequal numbers of weights and body vectors.")
     vec_count = body_vecs.shape[0]
+
+    #Just ensures the vectors aren't stuck as ints.
+    body_vecs = body_vecs*1.0
+    inertial_vecs = inertial_vecs*1.0
 
     ##DETERMINING APPROXIMATE EIGENVALUE
     eig_guess = weights.sum()
@@ -52,13 +60,12 @@ def quest(body_vecs,weights,inertial_vecs,precision=0.000001):
         eig_guess -= eh.chr_eq(eig_guess,c_l0,c_l1,c_l2,c_l3)/eh.diff_chr_eq(eig_guess,c_l1,c_l2,c_l3)
 
     ##SINGULARITY HANDLING
+    #Will only trigger if the pre_crp_mat is singular. Should only recurse once.
     #Could this check be done somewhat earlier in the program, 
     #so we don't have to redo everything?
     pre_crp_mat = (eig_guess+sigma)*np.identity(3)-S
     if np.linalg.det(pre_crp_mat) == 0:
-        
-        #All of this is completely arbitrary, just remember how to revert back to the original.
-        body_vecs=body_vecs*1.0
+        #This alternate body frame is completely arbitrary.
         rot_mat = np.array([
             [0,0,1],
             [1,0,0],
@@ -77,6 +84,7 @@ def quest(body_vecs,weights,inertial_vecs,precision=0.000001):
             [rot_quat[2],-rot_quat[3], rot_quat[0], rot_quat[1]],
             [rot_quat[3], rot_quat[2],-rot_quat[1], rot_quat[0]]
         ])
+        ##Rounding takes care of any minor precision issues
         return np.around(rot_quat_mat.dot(alt_quat),8)
     
     ##CALCULATE OUTPUT IN CRPs

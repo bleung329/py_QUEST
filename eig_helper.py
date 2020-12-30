@@ -2,7 +2,7 @@
 
 ###PURPOSE:
 #This file just helps declutter the 'quest.py' file. This contains all the lengthy
-#characteristic equation things that would've clutter the quest file.
+#characteristic equation things that would've cluttered it up otherwise.
 
 ###CONTEXT:
 #Thanks to Matlab, I found the characteristic equation of a 4x4 matrix:
@@ -28,6 +28,7 @@ def l0_coeff(K):
         - K[0,3]*K[1,0]*K[2,1]*K[3,2] + K[0,3]*K[1,0]*K[2,2]*K[3,1] + K[0,3]*K[1,1]*K[2,0]*K[3,2] 
         - K[0,3]*K[1,1]*K[2,2]*K[3,0] - K[0,3]*K[1,2]*K[2,0]*K[3,1] + K[0,3]*K[1,2]*K[2,1]*K[3,0]
         )
+
 #Returns the L^1 coefficient
 def l1_coeff(K):
     return (
