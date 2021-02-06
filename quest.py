@@ -1,21 +1,21 @@
 #Written by Brian Leung
 
-###PURPOSE:
-#Implementation of the quest algorithm.
+"""
+PURPOSE:
+    Implementation of the quest algorithm.
+PARAMETERS:
+    body_vecs: Nx3 numpy array of unit length body measurement vectors, where N>=2
+    weights: Nx1 numpy array of weights, corresponding to each of the unit body vectors 
+    inertial_vecs: Nx3 numpy array corresponding inertial vectors
+OUTPUT:
+    Quaternion of current attitude <q0 q1 q2 q3>, where q0 is the scalar term
+    (It'll just be a 1x4 numpy array, since numpy doesnt support quaternions natively.)
+"""
+
 import numpy as np
 import eig_helper as eh
 from math import sqrt
 import time
-
-"""
-Parameters:
-    body_vecs: Nx3 numpy array of unit length body measurement vectors, where N>=2
-    weights: Nx1 numpy array of weights, corresponding to each of the unit body vectors 
-    inertial_vecs: Nx3 numpy array corresponding inertial vectors
-Output:
-    Quaternion of current attitude <q0 q1 q2 q3>, where q0 is the scalar term
-    (It'll just be a 1x4 numpy array, since numpy doesnt support quaternions natively.)
-"""
 
 def quest(body_vecs,weights,inertial_vecs,precision=0.000001):
 
